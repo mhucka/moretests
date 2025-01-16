@@ -25,7 +25,7 @@ on:
       - '**.py'
   push:
     branches:
-      - master
+      - main
     paths:
       - '**.py'
 
