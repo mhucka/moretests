@@ -34,7 +34,6 @@ namespace tfq
 namespace 
 {
 
-
 using ::tensorflow::OpKernelContext;
 using ::tensorflow::Status;
 using ::tensorflow::Tensor;
