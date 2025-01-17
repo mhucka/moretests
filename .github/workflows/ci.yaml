@@ -1,33 +1,59 @@
 name: CI
-
-run-name: >
-  Continuous integration file checks
+run-name: Continuous integration file checks
 
 on:
   merge_group:
     types:
       - checks_requested
+
   pull_request:
     types: [opened, synchronize]
     branches:
       - main
+
   push:
     branches:
       - main
+
+  # Allow manual invocation, with options that can be useful for debugging.
   workflow_dispatch:
+    inputs:
+      files:
+        description: "Files or directories to check:"
+        type: string
+      python_ver:
+        description: 'Python version:'
+        type: string
+      pylint_ver:
+        description: 'Pylint version:'
+        type: string
+      yapf_ver:
+        description: 'Yapf version:'
+        type: string
+      clang_format_ver:
+        description: 'clang-format version:'
+        type: string
 
-# Cancel any previously-started but still active runs on the same branch.
+env:
+  # Set default values for things that can be overridden via workflow dispatch.
+  python_ver: '3.10'
+  # Note: as of 2025-01-16, clang-format v. 18 is the latest available on
+  # GitHub, and you have to use Ubuntu 24 to get it.
+  clang_format_ver: '18'
+
 concurrency:
-  group: ${{github.workflow}}-${{github.event.pull_request.number||github.ref}}
+  # Cancel any previously-started but still active runs on the same branch.
   cancel-in-progress: true
-
-permissions:
-  contents: write
-  pull-requests: write
+  group: ${{github.workflow}}-${{github.event.pull_request.number||github.ref}}
 
 jobs:
-  changes:
+  changed-files:
     runs-on: ubuntu-24.04
+    outputs:
+      python_files: ${{steps.changes.outputs.python_files}}
+      cc_files: ${{steps.changes.outputs.cpp_files}}
+      yaml_files: ${{steps.changes.outputs.yaml_files}}
+      md_files: ${{steps.changes.outputs.md_files}}
     steps:
       - name: Check out a copy of the TFQ git repository
         uses: actions/checkout@v4
@@ -37,10 +63,11 @@ jobs:
         id: changes
         with:
           list-files: 'shell'
+          # The outputs will be variables named "foo_files" for a filter "foo".
           filters: |
             python:
               - added|modified: '**/*.py'
-            cpp:
+            cc:
               - added|modified:
                   - '**.cc'
                   - '**.h'
@@ -48,10 +75,62 @@ jobs:
             yaml:
               - added|modified:
                   - '**.yaml'
+            md:
+              - added|modified:
+                  - '**/*.md'
 
-      - name: Test
+  cc-format:
+    name: C++ and Protobuf coding style
+    needs: changed-files
+    runs-on: ubuntu-24.04
+    env:
+      changed_files: ${{needs.changed-files.outputs.cc_files}}
+    steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
+      - name: Run clang-format on C++ and Protobuf files
         run: |
           set -x
-          echo ${{steps.changes.outputs.python_files}}
-          echo ${{steps.changes.outputs.cpp_files}}
-          echo ${{steps.changes.outputs.yaml_files}}
+          version=${{inputs.clang_format_ver || env.clang_format_ver}}
+          clang-format-$version -v --style google --diff \
+            ${{env.changed_files}} > diff.out 2>&1
+          exit_code=$?
+          if (( exit_code == 1 )); then
+            # Write output both here and to the job summary.
+            TERM=xterm-color
+            bo=$'\e[1m'
+            bl=$'\e[38;5;117m'
+            rs=$'\e[0m'
+            hi="👋🏻"
+            u="https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}"
+            echo "$hi ${bl}Visit $bo$u${rs}$bl for formatted diff output$rs $hi"
+            echo "::group::clang-format output"
+            cat diff.out
+            echo "::endgroup::"
+            # shellcheck disable=SC2006
+            {
+            echo "## Output from <code>clang-format</code> version $version"
+            echo ""
+            echo '```diff'
+            echo "$(< diff.out)"
+            echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $exit_code
+
+
+
+
+
+
+
+
+
+      # - name: Test
+      #   run: |
+      #     set -x
+      #     echo ${{steps.changes.outputs.python_files}}
+      #     echo ${{steps.changes.outputs.cpp_files}}
+      #     echo ${{steps.changes.outputs.yaml_files}}
+
