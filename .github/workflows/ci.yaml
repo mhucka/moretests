@@ -244,7 +244,7 @@ jobs:
   python-lint:
     if: needs.changed-files.outputs.python == 'true'
     name: Lint Python files
-    needs: python-setup
+    needs: [changed-files, python-setup]
     runs-on: ubuntu-22.04
     steps:
       - name: Check out a copy of the TFQ git repository
@@ -322,7 +322,7 @@ jobs:
   yaml-lint:
     if: needs.changed-files.outputs.yaml == 'true'
     name: YAML lint
-    needs: [changed-files, python-setup]
+    needs: changed-files
     runs-on: ubuntu-24.04
     env:
       changed_files: ${{needs.changed-files.outputs.yaml_files}}
