@@ -81,6 +81,7 @@ jobs:
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
+    needs: changed-files
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     outputs:
@@ -196,7 +197,7 @@ jobs:
           python -m pip install yapf==${{steps.req.outputs.yapf_version}}
 
   cc-format:
-    if: ${{needs.changed-files.outputs.cc == 'true'}}
+    if: needs.changed-files.outputs.cc == 'true'
     name: C++ and Protobuf coding style
     needs: changed-files
     runs-on: ubuntu-24.04
@@ -237,7 +238,7 @@ jobs:
           exit $exit_code
 
   yaml-lint:
-    if: ${{needs.changed-files.outputs.yaml == 'true'}}
+    if: needs.changed-files.outputs.yaml == 'true'
     name: YAML lint
     needs: changed-files
     runs-on: ubuntu-24.04
