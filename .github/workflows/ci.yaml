@@ -86,7 +86,7 @@ jobs:
 
       - run: |
           set -x
-          echo ${{toJSON(steps.changes.outputs)}}
+          printf "%s" "${{toJSON(steps.changes.outputs)}}"
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
