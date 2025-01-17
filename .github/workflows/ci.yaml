@@ -51,3 +51,4 @@ jobs:
           set -x
           echo ${{steps.changes.outputs.python_files}}
           echo ${{steps.changes.outputs.cpp_files}}
+          echo ${{steps.changes.outputs.yaml_files}}
