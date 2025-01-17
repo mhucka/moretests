@@ -79,6 +79,122 @@ jobs:
               - added|modified:
                   - '**/*.md'
 
+  python-setup:
+    if: needs.changed-files.outputs.python == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      cache_key: ${{steps.parameters.outputs.cache_key}}
+      cache_paths: ${{steps.parameters.outputs.cache_paths}}
+      files: ${{steps.files.outputs.files_to_check}}
+    steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
+        # Note: setup-python has a cache facility, but we don't use it here
+        # because we want to cache more Python things than setup-python does.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{inputs.python_ver || env.python_ver}}
+
+      - name: Set cache parameters
+        id: parameters
+        run: |
+          key="${{github.workflow_ref}}-${{hashFiles('requirements.txt')}}"
+          echo "cache_key=$key" >> "$GITHUB_OUTPUT"
+          # The paths used for actions/cache need to be on separate lines.
+          # Constructing a multiline value for an output variable is awkward.
+          # shellcheck disable=SC2005
+          {
+          echo 'cache_paths<<EOF'
+          echo "$(pip cache dir)"
+          echo "${{env.pythonLocation}}"
+          echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Test if the cache already exists
+        uses: actions/cache@v4
+        id: check_cache
+        with:
+          lookup-only: true
+          key: ${{steps.parameters.outputs.cache_key}}
+          path: ${{steps.parameters.outputs.cache_paths}}
+
+      - if: steps.check_cache.outputs.cache-hit != 'true'
+        name: Set up the cache
+        uses: actions/cache@v4
+        id: restore_cache
+        with:
+          key: ${{steps.parameters.outputs.cache_key}}
+          path: ${{steps.parameters.outputs.cache_paths}}
+
+      - if: github.event_name != 'workflow_dispatch'
+        name: Get the list of Python files changed in the triggering event
+        id: changes
+        uses: tj-actions/changed-files@v45
+        # Although this workflow is triggered only if Python files are changed,
+        # they might not be the *only* files changed; hence, we have to filter
+        # the set of files down to just the Python files.
+        with:
+          files: |
+            **.py
+
+      - name: Determine the files to be checked
+        id: files
+        run: |
+          # Files/dirs given during manual invocation take precedence.
+          if [[ "${{github.event_name}}" == "workflow_dispatch" ]]; then
+            if [[ -n "${{inputs.files}}" ]]; then
+              files="${{inputs.files}}"
+            else
+              echo "::error title=Error::No file names or directories provided."
+              exit 1
+            fi
+          else
+            files="${{steps.changes.outputs.all_changed_files}}"
+          fi
+          echo "files_to_check=$files" >> "$GITHUB_OUTPUT"
+
+      - if: steps.check_cache.outputs.cache-hit != 'true'
+        name: Determine the versions of Pylint and Yapf to use
+        id: req
+        run: |
+          # Get the pylint & yapf versions from requirements.txt.
+          # In case of multiple values in the file, the last one will win.
+          echo "pylint_version=" >> "$GITHUB_OUTPUT"
+          echo "yapf_version=" >> "$GITHUB_OUTPUT"
+          number_regex='[0-9]+(\.[0-9]+)?(\.[0-9]+)?'
+          while IFS= read -r line; do
+            if [[ $line =~ ^pylint.* ]]; then
+              if [[ $line =~ $number_regex ]]; then
+                version="${BASH_REMATCH[0]}"
+                echo "pylint_version=$version" >> "$GITHUB_OUTPUT"
+                continue
+              fi
+            fi
+            if [[ $line =~ ^yapf.* ]]; then
+              if [[ $line =~ $number_regex ]]; then
+                version="${BASH_REMATCH[0]}"
+                echo "yapf_version=$version" >> "$GITHUB_OUTPUT"
+                continue
+              fi
+            fi
+          done < "requirements.txt"
+          # If given versions in manual invocation, use them instead.
+          if [[ "${{inputs.pylint_ver}}" != "" ]]; then
+            echo "pylint_version=${{inputs.pylint_ver}}" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "${{inputs.yapf_ver}}" != "" ]]; then
+            echo "yapf_version=${{inputs.yapf_ver}}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check_cache.outputs.cache-hit != 'true'
+        name: Install Pylint and Yapf
+        run: |
+          python -m pip install pylint==${{steps.req.outputs.pylint_version}}
+          python -m pip install yapf==${{steps.req.outputs.yapf_version}}
+
   cc-format:
     if: ${{needs.changed-files.outputs.cc == 'true'}}
     name: C++ and Protobuf coding style
@@ -120,11 +236,20 @@ jobs:
           fi
           exit $exit_code
 
+  yaml-lint:
+    if: ${{needs.changed-files.outputs.yaml == 'true'}}
+    name: YAML lint
+    needs: changed-files
+    runs-on: ubuntu-24.04
+    env:
+      changed_files: ${{needs.changed-files.outputs.yaml_files}}
+    steps:
+      - name: Set up yamllint output problem matcher
+        run: echo "::add-matcher::.github/problem-matchers/yamllint.json"
 
-
-
-
-
+      - name: Run yamllint
+        run: |
+          yamllint $changed_files
 
 
 
