@@ -1,4 +1,4 @@
-name: CI
+name: CI file checks
 run-name: Continuous integration file checks
 
 on:
@@ -68,6 +68,7 @@ jobs:
         with:
           list-files: 'shell'
           # The outputs will be variables named "foo_files" for a filter "foo".
+          # Note: if any additions are made here, also update the next step.
           filters: |
             python:
               - added|modified: '**/*.py'
@@ -82,6 +83,18 @@ jobs:
             md:
               - added|modified:
                   - '**/*.md'
+
+      - name: Stop workflow if nothing is actionable
+        if: >-
+          steps.changes.outputs.python == 'false' &&
+          steps.changes.outputs.cc == 'false' &&
+          steps.changes.outputs.yaml == 'false' &&
+          steps.changes.outputs.md == 'false'
+        env:
+          GH_TOKEN: ${{github.token}}
+        run: |
+          gh run cancel ${{github.run_id}}
+          gh run watch ${{github.run_id}}
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
