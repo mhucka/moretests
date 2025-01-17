@@ -86,8 +86,7 @@ jobs:
 
       - run: |
           set -x
-          object='${{steps.changes.outputs}}'
-          jq --argjson obj "$object" '. | tojson'
+          echo ${{toJSON(steps.changes.outputs)}}
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
