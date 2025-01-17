@@ -50,9 +50,13 @@ jobs:
   changed-files:
     runs-on: ubuntu-24.04
     outputs:
+      python: ${{steps.changes.outputs.python}}
       python_files: ${{steps.changes.outputs.python_files}}
-      cc_files: ${{steps.changes.outputs.cpp_files}}
+      cc: ${{steps.changes.outputs.cc}}
+      cc_files: ${{steps.changes.outputs.cc_files}}
+      yaml: ${{steps.changes.outputs.yaml}}
       yaml_files: ${{steps.changes.outputs.yaml_files}}
+      md: ${{steps.changes.outputs.md}}
       md_files: ${{steps.changes.outputs.md_files}}
     steps:
       - name: Check out a copy of the TFQ git repository
