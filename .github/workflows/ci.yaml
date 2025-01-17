@@ -58,8 +58,6 @@ jobs:
       yaml_files: ${{steps.changes.outputs.yaml_files}}
       md: ${{steps.changes.outputs.md}}
       md_files: ${{steps.changes.outputs.md_files}}
-    permissions:
-      actions: 'write'
     steps:
       - name: Check out a copy of the TFQ git repository
         uses: actions/checkout@v4
@@ -86,17 +84,10 @@ jobs:
               - added|modified:
                   - '**/*.md'
 
-      - name: Stop workflow if nothing is actionable
-        if: >-
-          steps.changes.outputs.python == 'false' &&
-          steps.changes.outputs.cc == 'false' &&
-          steps.changes.outputs.yaml == 'false' &&
-          steps.changes.outputs.md == 'false'
-        env:
-          GH_TOKEN: ${{github.token}}
-        run: |
-          gh run cancel ${{github.run_id}}
-          gh run watch ${{github.run_id}}
+      - run: |
+          set -x
+          echo ${{steps.changes.outputs}}
+
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
