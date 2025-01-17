@@ -6,28 +6,10 @@ on:
     types: [opened, synchronize]
     branches:
       - main
-    # Speed up execution by skipping files we don't check.
-    # Note [1]: if this changes, also update the filters in job "changed-files".
-    paths:
-      - '**/*.py'
-      - '**/*.cc'
-      - '**/*.h'
-      - '**/*.proto'
-      - '**/*.yaml'
-      - '**/*.md'
 
   push:
     branches:
       - main
-    # Speed up execution by skipping files we don't check.
-    # Note [2]: if this changes, also update the filters in job "changed-files".
-    paths:
-      - '**/*.py'
-      - '**/*.cc'
-      - '**/*.h'
-      - '**/*.proto'
-      - '**/*.yaml'
-      - '**/*.md'
 
   merge_group:
     types:
@@ -65,9 +47,6 @@ concurrency:
   group: ${{github.workflow}}-${{github.event.pull_request.number||github.ref}}
 
 jobs:
-  # The "on:" conditions on this workflow contain "paths:" specifiers that will
-  # trigger execution only when certain file types are matched. Here we examine
-  # the list of affected files, so we can limit job execution to relevant ones.
   changed-files:
     runs-on: ubuntu-24.04
     outputs:
@@ -89,7 +68,6 @@ jobs:
         with:
           list-files: 'shell'
           # The outputs will be variables named "foo_files" for a filter "foo".
-          # Note: if this changes, also update the "on:" triggers in [1,2].
           filters: |
             python:
               - added|modified:
