@@ -249,6 +249,9 @@ jobs:
     env:
       changed_files: ${{needs.changed-files.outputs.yaml_files}}
     steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
       - name: Set up yamllint output problem matcher
         run: |
           ls -la
