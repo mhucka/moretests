@@ -254,6 +254,8 @@ jobs:
 
       - name: Run yamllint
         run: |
+          set -x
+          # shellcheck disable=SC2086
           yamllint $changed_files
 
 
