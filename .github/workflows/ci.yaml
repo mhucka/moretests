@@ -1,0 +1,50 @@
+name: CI"
+
+on:
+  merge_group:
+    types:
+      - checks_requested
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Cancel any previously-started but still active runs on the same branch.
+concurrency:
+  group: ${{github.workflow}}-${{github.event.pull_request.number||github.ref}}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
+      - name: Determine which files were changed
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          list-files: 'shell'
+          filters: |
+            python:
+              - added|modified: '**/*.py'
+            cpp:
+              - added|modified:
+                  - '**.cc'
+                  - '**.h'
+                  - '**.proto'
+
+      - name: Test
+        run: |
+          set -x
+          echo ${{steps.changes.outputs.python_files}}
+          echo ${{steps.changes.outputs.cpp_files}}
