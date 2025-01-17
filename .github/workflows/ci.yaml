@@ -215,7 +215,7 @@ jobs:
         run: |
           set -x
           version=${{inputs.clang_format_ver || env.clang_format_ver}}
-          clang-format-$version -v --style google --diff \
+          clang-format-$version --verbose --style google --dry-run \
             ${{env.changed_files}} > diff.out 2>&1
           exit_code=$?
           if (( exit_code == 1 )); then
@@ -241,10 +241,88 @@ jobs:
           fi
           exit $exit_code
 
+  python-lint:
+    if: needs.changed-files.outputs.python == 'true'
+    name: Lint Python files
+    needs: python-setup
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{inputs.python_ver || env.python_ver}}
+
+      - name: Restore the Python cache
+        uses: actions/cache@v4
+        with:
+          key: ${{needs.python-setup.outputs.cache_key}}
+          path: ${{needs.python-setup.outputs.cache_paths}}
+          fail-on-cache-miss: true
+
+      - name: Set up pylint output problem matcher
+        run: echo "::add-matcher::.github/problem-matchers/pylint.json"
+
+      - name: Lint the changed Python files
+        run: |
+          pylint ${{needs.changed-files.outputs.files}}
+
+  python-format:
+    if: needs.changed-files.outputs.python == 'true'
+    name: Check the format of Python files
+    needs: [changed-files, python-setup]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out a copy of the TFQ git repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{inputs.python_ver || env.python_ver}}
+
+      - name: Restore the Python cache
+        uses: actions/cache@v4
+        with:
+          key: ${{needs.python-setup.outputs.cache_key}}
+          path: ${{needs.python-setup.outputs.cache_paths}}
+          fail-on-cache-miss: true
+
+      - name: Run Yapf on the Python changed files
+        run: |
+          set +e
+          yapf --parallel --diff --style=google \
+            "${{needs.changed-files.outputs.files}}" > diff.out 2>&1
+          exit_code=$?
+          if [[ -s ./diff.out ]]; then
+            # Write output both here and to the job summary.
+            TERM=xterm-color
+            bo=$'\e[1m'
+            bl=$'\e[38;5;117m'
+            rs=$'\e[0m'
+            hi="👋🏻"
+            u="https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}"
+            echo "$hi ${bl}Visit $bo$u${rs}$bl for formatted diff output$rs $hi"
+            echo "::group::Yapf output"
+            cat diff.out
+            echo "::endgroup::"
+            # shellcheck disable=SC2006
+            {
+            echo "## Output from <code>yapf</code>"
+            echo ""
+            echo '```diff'
+            echo "$(< diff.out)"
+            echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $exit_code
+
   yaml-lint:
     if: needs.changed-files.outputs.yaml == 'true'
     name: YAML lint
-    needs: changed-files
+    needs: [changed-files, python-setup]
     runs-on: ubuntu-24.04
     env:
       changed_files: ${{needs.changed-files.outputs.yaml_files}}
