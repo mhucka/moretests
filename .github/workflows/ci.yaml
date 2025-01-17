@@ -262,12 +262,3 @@ jobs:
           set -x
           # shellcheck disable=SC2086
           yamllint $changed_files
-
-
-      # - name: Test
-      #   run: |
-      #     set -x
-      #     echo ${{steps.changes.outputs.python_files}}
-      #     echo ${{steps.changes.outputs.cpp_files}}
-      #     echo ${{steps.changes.outputs.yaml_files}}
-
