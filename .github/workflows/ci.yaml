@@ -250,7 +250,9 @@ jobs:
       changed_files: ${{needs.changed-files.outputs.yaml_files}}
     steps:
       - name: Set up yamllint output problem matcher
-        run: echo "::add-matcher::.github/problem-matchers/yamllint.json"
+        run: |
+          ls -la
+          echo "::add-matcher::.github/problem-matchers/yamllint.json"
 
       - name: Run yamllint
         run: |
