@@ -2,18 +2,36 @@ name: CI file checks
 run-name: Continuous integration file checks
 
 on:
-  merge_group:
-    types:
-      - checks_requested
-
   pull_request:
     types: [opened, synchronize]
     branches:
       - main
+    # Speed up execution by skipping files we don't check.
+    # Note [1]: if this changes, also update the filters in job "changed-files".
+    paths:
+      - '**/*.py'
+      - '**/*.cc'
+      - '**/*.h'
+      - '**/*.proto'
+      - '**/*.yaml'
+      - '**/*.md'
 
   push:
     branches:
       - main
+    # Speed up execution by skipping files we don't check.
+    # Note [2]: if this changes, also update the filters in job "changed-files".
+    paths:
+      - '**/*.py'
+      - '**/*.cc'
+      - '**/*.h'
+      - '**/*.proto'
+      - '**/*.yaml'
+      - '**/*.md'
+
+  merge_group:
+    types:
+      - checks_requested
 
   # Allow manual invocation, with options that can be useful for debugging.
   workflow_dispatch:
@@ -47,6 +65,9 @@ concurrency:
   group: ${{github.workflow}}-${{github.event.pull_request.number||github.ref}}
 
 jobs:
+  # The "on:" conditions on this workflow contain "paths:" specifiers that will
+  # trigger execution only when certain file types are matched. Here we examine
+  # the list of affected files, so we can limit job execution to relevant ones.
   changed-files:
     runs-on: ubuntu-24.04
     outputs:
@@ -68,25 +89,22 @@ jobs:
         with:
           list-files: 'shell'
           # The outputs will be variables named "foo_files" for a filter "foo".
-          # Note: if any additions are made here, also update the next step.
+          # Note: if this changes, also update the "on:" triggers in [1,2].
           filters: |
             python:
-              - added|modified: '**/*.py'
+              - added|modified:
+                  - '**/*.py'
             cc:
               - added|modified:
-                  - '**.cc'
-                  - '**.h'
-                  - '**.proto'
+                  - '**/*.cc'
+                  - '**/*.h'
+                  - '**/*.proto'
             yaml:
               - added|modified:
-                  - '**.yaml'
+                  - '**/*.yaml'
             md:
               - added|modified:
                   - '**/*.md'
-
-      - run: |
-          set -x
-          printf "%s" "${{toJSON(steps.changes.outputs)}}"
 
   python-setup:
     if: needs.changed-files.outputs.python == 'true'
