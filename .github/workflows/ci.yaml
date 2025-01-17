@@ -1,5 +1,8 @@
 name: CI
 
+run-name: >
+  Continuous integration file checks
+
 on:
   merge_group:
     types:
