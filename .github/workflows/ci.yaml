@@ -267,7 +267,7 @@ jobs:
 
       - name: Lint the changed Python files
         run: |
-          pylint ${{needs.changed-files.outputs.files}}
+          pylint ${{needs.changed-files.outputs.python_files}}
 
   python-format:
     if: needs.changed-files.outputs.python == 'true'
@@ -294,7 +294,7 @@ jobs:
         run: |
           set +e
           yapf --parallel --diff --style=google \
-            "${{needs.changed-files.outputs.files}}" > diff.out 2>&1
+            "${{needs.changed-files.outputs.python_files}}" > diff.out 2>&1
           exit_code=$?
           if [[ -s ./diff.out ]]; then
             # Write output both here and to the job summary.
