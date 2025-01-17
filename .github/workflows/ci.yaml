@@ -58,6 +58,8 @@ jobs:
       yaml_files: ${{steps.changes.outputs.yaml_files}}
       md: ${{steps.changes.outputs.md}}
       md_files: ${{steps.changes.outputs.md_files}}
+    permissions:
+      actions: 'write'
     steps:
       - name: Check out a copy of the TFQ git repository
         uses: actions/checkout@v4
